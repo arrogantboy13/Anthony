@@ -17,12 +17,13 @@ Each strategy gets a **fixed sub-allocation**: its own capital slice, tracked in
 ## SPY scalping ledger detail
 
 Starting balance: **$1,500.00**
+Paper trading start date: **2026-06-29** (Monday) — see `research/paper_trade_runbook.md` for the live decision process and `research/paper_trade_state.json` for current open-position state.
 
-| Date | Trade | Side | Entry | Exit | P&L | Balance after |
-|---|---|---|---|---|---|---|
-| — | — | — | — | — | — | $1,500.00 |
+| Date | Side | Strike | Entry premium | Exit premium | P&L | Exit reason | Balance after |
+|---|---|---|---|---|---|---|---|
+| — | — | — | — | — | — | — | $1,500.00 |
 
-*(No live or paper trades logged yet — backtest results are tracked separately in the backtest script output, not in this ledger, since backtests aren't real fills against this balance.)*
+*(No paper trades logged yet — backtest results are tracked separately in the backtest script output, not in this ledger, since backtests use a modeled option price, not real fills.)*
 
 ## Rules for updating this file
 - Only log trades that actually executed (paper or live) against the strategy's real allocation — not backtest simulations.

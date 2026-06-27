@@ -1,0 +1,11 @@
+{
+  "mode": "paper",
+  "strategy": "SPY scalping",
+  "allocation": 1500.0,
+  "balance": 1500.0,
+  "open_position": null,
+  "day_trade_count": {},
+  "day_consec_losses": {},
+  "halted_days": [],
+  "last_check_utc": null
+}
