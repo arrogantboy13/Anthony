@@ -6,12 +6,15 @@ Implements the playbook's rules directly:
 - Entry: >=3 of 4 confluence signals (VWAP reclaim, EMA9/21 cross, RSI(14) momentum, relative volume)
 - Stop: VWAP/EMA invalidation (not a fixed dollar amount)
 - Target: 1.5x risk full exit (partial-at-1x is approximated as a single full exit at avg of the two)
-- Max 4 trades/day, stop session after 2 consecutive losses
-- Position sizing: 1% of equity risked per trade, sized to the stop distance
+- Max 1 trade/day (cash-account / PDT-safe model, per SPY-scalping-strategy.md section 5a)
+- Position sizing: capital-capped fractional shares — min(risk budget / stop distance, balance / entry price)
 
 Data: SPY 5-minute bars, regular session, pulled via Robinhood get_equity_historicals.
 Trades shares (not options) to isolate the entry/exit logic from theta/IV noise -
 see README notes in SPY-scalping-strategy.md for why that's a simplification.
+
+Ledger: this backtest is a simulation only — it does NOT write to research/ledger.md.
+Only real (paper or live) fills against the $1,500 allocation belong in that ledger.
 """
 import csv
 from datetime import datetime, timezone, timedelta
@@ -20,10 +23,10 @@ from zoneinfo import ZoneInfo
 ET = ZoneInfo("America/New_York")
 CSV_PATH = "/tmp/claude-0/-home-user-Anthony/1280a2cf-4441-5288-aa7f-39b2f8521d62/scratchpad/spy_5min.csv"
 
-STARTING_EQUITY = 100_000.0
+STARTING_EQUITY = 1_500.0  # matches the SPY scalping allocation in research/ledger.md
 RISK_PCT = 0.01
 TARGET_R = 1.5
-MAX_TRADES_PER_DAY = 4
+MAX_TRADES_PER_DAY = 1  # cash-account / PDT-safe model — see strategy doc section 5a
 MAX_CONSEC_LOSSES = 2
 RELVOL_LOOKBACK = 20
 RELVOL_THRESHOLD = 1.5
@@ -237,7 +240,11 @@ def run_backtest(bars):
 
         target = entry_price + TARGET_R * risk_per_share if side == "long" else entry_price - TARGET_R * risk_per_share
         risk_dollars = equity * RISK_PCT
-        shares = max(1, int(risk_dollars / risk_per_share))
+        risk_based_shares = risk_dollars / risk_per_share
+        capital_capped_shares = equity / entry_price  # fractional shares, no margin
+        shares = round(min(risk_based_shares, capital_capped_shares), 4)
+        if shares <= 0:
+            continue
 
         open_pos = {
             "side": side, "entry_price": entry_price, "entry_ts": b["ts"],

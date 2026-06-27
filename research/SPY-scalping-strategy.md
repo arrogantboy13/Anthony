@@ -35,6 +35,15 @@ Require at least 3 of these 4 to align before entering, using the 1-min or 5-min
 - **Target**: scalps target 1.5–2x the initial risk; take partial profit at 1x risk and trail the rest with the 9 EMA or VWAP as a moving stop.
 - **Max trades/day**: cap at 3–4 scalps. After 2 consecutive losses, stop for the session — tilt-driven overtrading is the most common way scalping accounts blow up.
 
+## 5a. Account size & constraints ($1,500 allocation)
+This strategy's real allocation is **$1,500** (tracked in `research/ledger.md`), not the $100k used in the original backtest. Two constraints bind hard at this size and change the strategy materially:
+
+- **Pattern Day Trader (PDT) rule**: a margin account under $25k equity is restricted to 3 day trades (same-day round trips) within any rolling 5 business-day window before being flagged and locked out of day trading. At $1,500 this is the binding constraint — §5's "3-4 scalps/day" cadence is **not legal/available** on margin at this size. Plan for **at most 3 round-trip trades per rolling 5 business days**, not per day.
+- **Cash account alternative**: a cash account avoids PDT entirely but trades only with *settled* funds (T+1) — once capital is in a trade, the proceeds aren't available to re-enter until the next business day. This caps the account at roughly **1 round trip per day**, using the same capital each time, which is actually a closer fit to a $1,500 size than fighting the margin/PDT limit.
+- **Recommendation**: run this as a cash account, **1 trade/day max**, and treat §5's "3-4 scalps/day, halt after 2 losses" as the larger-account version of this playbook. The core entry/exit logic (§3, §5) is unchanged — only frequency changes.
+- **Position sizing at $1,500**: risk-based sizing (0.5–1% of equity = $7.50–$15/trade) is usually smaller than what 1 share of SPY's stop distance requires, so **capital availability — not risk %% — is the binding constraint** on size. Use fractional shares (Robinhood supports this) sized to the smaller of (a) risk budget / stop distance, or (b) account balance / entry price. Don't round up to a full share if it busts the risk budget.
+- **Options at this size**: a single 0DTE/weekly ATM contract can run $150–$500+ in premium — that alone can be 10–30% of the entire $1,500 allocation in one trade. If trading options, size to 1 contract only and treat that contract's full premium as the at-risk capital (not a stop-distance calc), since a 0DTE option can go to zero before a share-based stop would even trigger.
+
 ## 6. Daily pre-market checklist
 - [ ] Check VIX level and overnight futures gap — is today a "tradeable" volatility regime (not too quiet, not chaotic)?
 - [ ] Note key levels: prior day high/low, overnight high/low, VWAP from prior session.
