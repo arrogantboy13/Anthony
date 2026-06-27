@@ -5,10 +5,12 @@ Each strategy gets a **fixed sub-allocation**: its own capital slice, tracked in
 
 ## Allocations
 
-| Strategy | Allocation | Current balance | Status |
-|---|---|---|---|
-| SPY scalping | $1,500.00 | $1,500.00 | Active (paper/backtest stage) |
-| WEN (Wendy's) | Not yet allocated | — | Research only, no position sized |
+| Strategy | Allocation | Current balance | Mode | Status |
+|---|---|---|---|---|
+| SPY scalping | $1,500.00 | $1,500.00 | **Paper** | Active — no real orders are placed; all fills are simulated against live quotes |
+| WEN (Wendy's) | Not yet allocated | — | — | Research only, no position sized |
+
+**Paper, not live.** Every trade logged against the SPY scalping allocation below is a simulated fill — entries/exits use real-time quotes at decision time, but no real order is ever placed. Do not place live orders against this strategy without an explicit instruction to switch modes, and update the Mode column here if that ever changes.
 
 **Total capital committed to strategies above**: $1,500.00 (SPY scalping only; WEN has no allocation until a position is explicitly sized).
 
