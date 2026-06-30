@@ -98,7 +98,7 @@ def in_session_window(ts):
 
 def signals(i, bars, ema9, ema21, rsi, vwap, relvol):
     """Return ('long'|'short'|None, count_of_confirming_signals)."""
-    if i < 2 or rsi[i] is None or relvol[i] is None:
+    if i < 2 or rsi[i] is None or rsi[i - 1] is None or relvol[i] is None:
         return None, 0
     c, c_prev = bars[i]["close"], bars[i - 1]["close"]
 
