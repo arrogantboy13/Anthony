@@ -28,7 +28,8 @@ position, look for a new entry if flat, write state + ledger, commit + push.
 
 ## 2. If flat (`open_position` is null)
 - Skip if today is in `halted_days`, or `day_trade_count[today] >= 1` (PDT/cash-account-safe: max 1 round trip/day — see SPY-scalping-strategy.md section 5a).
-- Fetch today's SPY 5-min bars from market open to now (`get_equity_historicals`, regular bounds), save to CSV.
+- Fetch SPY 5-min bars going back **2 calendar days** (not just today) to now (`get_equity_historicals`, regular bounds) — this pre-seeds RSI(14), EMA9/21, and relative-volume with enough prior bars that indicators are valid from today's open. Without this, RSI takes 14 bars (~70 min) to initialize, which means the entire 9:30–10:30 morning window fires no signals from a cold start.
+- Save to CSV (include all bars returned — the prior-session bars are warm-up only; signal decisions are still gated by today's date and `in_session_window`).
 - Run `python3 research/paper_trade_engine.py signal <csv_path>`.
 - If `side` is null: no entry this cycle, stop.
 - If `side` is set:

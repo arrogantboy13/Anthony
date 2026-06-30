@@ -19,7 +19,12 @@ from spy_backtest_lib import load_bars, compute_indicators, in_session_window, s
 TARGET_R = 1.5
 
 
-def get_signal(csv_path):
+def get_signal(csv_path, today_date_iso=None):
+    """
+    Load bars (which should include prior-session warm-up bars to seed RSI/EMAs),
+    compute indicators, and return the signal on the LAST bar only.
+    If today_date_iso (YYYY-MM-DD) is supplied, skip if the last bar isn't from today.
+    """
     bars = load_bars(csv_path)
     if len(bars) < 3:
         return {"side": None, "reason": "not enough bars yet"}
@@ -27,6 +32,9 @@ def get_signal(csv_path):
     ema9, ema21, rsi, vwap, relvol = compute_indicators(bars)
     i = len(bars) - 1
     b = bars[i]
+
+    if today_date_iso and b["ts"].date().isoformat() != today_date_iso:
+        return {"side": None, "reason": f"last bar {b['ts'].date()} is not today ({today_date_iso})"}
 
     side, count = signals(i, bars, ema9, ema21, rsi, vwap, relvol)
     in_window = in_session_window(b["ts"])
@@ -89,7 +97,9 @@ def check_exit(side, stop, target, current_high, current_low, current_close, now
 if __name__ == "__main__":
     cmd = sys.argv[1]
     if cmd == "signal":
-        print(json.dumps(get_signal(sys.argv[2]), indent=2))
+        # optional 3rd arg: today's date YYYY-MM-DD to guard against stale last-bar
+        today = sys.argv[3] if len(sys.argv) > 3 else None
+        print(json.dumps(get_signal(sys.argv[2], today), indent=2))
     elif cmd == "check_exit":
         # side stop target high low close now_iso
         args = sys.argv[2:]
