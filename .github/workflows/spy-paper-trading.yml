@@ -1,0 +1,64 @@
+name: SPY Scalping Paper Trading
+
+# Runs every ~12 minutes during the two session windows (ET = UTC-4 in summer):
+#   Morning:  9:30-10:30 ET  = 13:30-14:30 UTC
+#   Power hr: 15:00-16:00 ET = 19:00-20:00 UTC
+#   EOD close: 16:05 ET      = 20:05 UTC
+#
+# GitHub scheduled workflows only fire from the default branch.
+# Merge the PR that introduced this file to activate it.
+#
+# Required repository secrets:
+#   ANTHROPIC_API_KEY  — Anthropic API key for Claude Code
+#   (Robinhood MCP credentials are picked up from the environment config
+#    already set on this repo's Claude Code integration)
+
+on:
+  schedule:
+    # Morning window: every 12 min, 13:00-14:48 UTC (logic skips before 13:30 / after 14:30)
+    - cron: "2,14,26,38,50 13,14 * * 1-5"
+    # Power hour: every 12 min, 19:00-19:50 UTC
+    - cron: "2,14,26,38,50 19 * * 1-5"
+    # EOD safety net: force-close any open position at 16:05 ET (20:05 UTC)
+    - cron: "5 20 * * 1-5"
+  # Allow manual trigger for testing / re-arming
+  workflow_dispatch:
+
+jobs:
+  paper-trade-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout repo (paper trading branch)
+        uses: actions/checkout@v4
+        with:
+          ref: claude/spy-scalping-sfsyj2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run SPY paper trading check via Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are running an automated SPY scalping paper trading check.
+            Follow research/paper_trade_runbook.md exactly, step by step.
+
+            Key instructions:
+            - Fetch SPY 5-min bars going back 2 calendar days to now using
+              get_equity_historicals (start ~2 days ago at 13:30Z, interval=5minute,
+              bounds=regular) to pre-seed RSI/EMA indicators.
+            - Today's date is ${{ github.run_started_at && 'auto' || 'check UTC date' }}.
+              Use the actual current UTC date/time to determine if we are within
+              9:30-16:00 ET (13:30-20:00 UTC). If not, no-op silently.
+            - Pass today's date (YYYY-MM-DD ET) as the 3rd argument to
+              `python3 research/paper_trade_engine.py signal <csv> <date>`
+              so prior-session bars don't trigger a false entry signal.
+            - This is PAPER ONLY — never call place_option_order or place_equity_order.
+            - After any state or ledger change, commit and push to branch
+              claude/spy-scalping-sfsyj2 with a descriptive commit message.
+            - If no action is needed (outside hours, no signal, no open position
+              to manage), update last_check_utc in paper_trade_state.json and
+              commit/push so the log shows the check ran.
