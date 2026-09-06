@@ -117,6 +117,36 @@ mid prices, and nothing in this data suggests any rule gets you there. Four wind
 If you want BTC directional exposure, spot or dated options give it to you without paying a
 2.5-cent-per-contract toll every 15 minutes.
 
+## 6a. Trading in and out (not holding to close)
+Exiting early is a different trade, and worse. Holding to settlement crosses the spread once
+and pays one fee (Kalshi charges nothing at settlement); scalping out crosses twice and pays
+two. **The toll goes from ~2.4c to ~4.9c per contract.**
+
+Tested on real executable prices — buy at the ask, sell into the bid 2 minutes later, bucketed
+by how the price moved over the *prior* 2 minutes:
+
+| Prior 2-min move | n | Gross P&L | Fees | **Net P&L/contract** |
+|---|---|---|---|---|
+| −35 to −25c (sharp drop) | 56 | **+$0.0362** | $0.0348 | **+$0.0014** |
+| −25 to −15c | 175 | +$0.0115 | $0.0346 | −$0.0231 |
+| −15 to −5c | 351 | −$0.0001 | $0.0344 | −$0.0345 |
+| −5 to +5c (flat) | 576 | −$0.0088 | $0.0351 | −$0.0439 |
+| **+5 to +15c (chasing a rise)** | 399 | −$0.0271 | $0.0330 | **−$0.0601** |
+| +25 to +35c | 65 | −$0.0273 | $0.0328 | −$0.0601 |
+
+Two things fall out, and both are the opposite of intuition:
+
+- **The falling knife is the only entry with a real gross edge.** Buying YES *into* a sharp
+  2-minute drop bounces +3.6c gross. But the round trip costs 3.5c, so it nets +0.14c on 56
+  observations — indistinguishable from zero. The bounce is real; it just isn't yours.
+- **Chasing is the reliably worst trade.** Buying the side that just moved in your favor loses
+  6c per contract. The mirror trade (buying NO after a rise) is negative in *every* bucket.
+
+A caution on the gross bounce: measuring a prior move and a forward move on the same noisy mid
+series manufactures mean reversion mechanically (bid-ask bounce), which is why the table above
+uses executable ask/bid prices rather than mids. On mids the "bounce" looks about three times
+larger than it is.
+
 ## 7. If you're trading them anyway
 In rough order of how much each one is worth:
 
@@ -169,7 +199,8 @@ Fee, sizing, and threshold math is shared with the general playbook in
 
 ## Bottom line
 These markets are efficiently priced by people with a better data feed than you can buy, and
-they charge 2.5 cents a round trip for the privilege of guessing. The two edges that appear in
+they charge 2.5 cents to hold to close — 4.9 cents if you scalp in and out — for the privilege
+of guessing. The two edges that appear in
 the data — "always buy NO" and the last-minute signal — are both artifacts, and I'd rather hand
 you the disproof than the backtest. If you want to be in this market, be the one posting quotes,
 not the one crossing them.
