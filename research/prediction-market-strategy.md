@@ -109,6 +109,14 @@ outcome. `prediction_market_edge.py arb` computes the net cost including fees. T
 small, and short-lived — but they're the only genuinely risk-free trade in the space, and
 they're worth scanning for on any multi-outcome market you're already looking at.
 
+### A worked negative result: BTC 15-minute up/down
+`research/btc-15min-strategy.md` applies this playbook to Kalshi's `KXBTC15M` series and finds
+no tradeable edge — the market prices to within $0.001/contract of perfectly calibrated, and
+the two edges that show up in a naive backtest ("always buy NO", a last-minute signal) are both
+artifacts of sample drift. Worth reading before building any short-horizon crypto screen: it is
+a concrete example of §4's kill conditions doing their job, and of how a stale price feed
+manufactures a confident 17-point edge against a correctly priced market.
+
 ### Where NOT to play
 Skip the headline markets — presidential elections, marquee sports games, "will X happen by
 year end" on a company everyone follows. Deep liquidity and enormous attention make these the
@@ -217,13 +225,26 @@ python3 research/prediction_market_edge.py size 0.60 0.53 500 --venue kalshi
 - `research/prediction_market_edge.py` implements the math in §2, §3b, §3d, §5, and §6:
   `fees`, `edge`, `size`, `arb`, `devig`. Stdlib only, no venue API calls — quotes go in on
   the command line, the same split the SPY paper-trade engine uses.
-- **There is no MCP tool coverage for event contracts in this repo's Robinhood toolset** —
-  the available tools cover equities, options, and crypto only. Prediction-market quotes have
-  to be read manually from the venue and passed to the script, so this strategy cannot be
-  automated on the SPY playbook's cron pattern until that changes. Screen manually,
-  paper-log results, and only then consider automation.
-- **Mode: research / paper.** No allocation is assigned in `research/ledger.md` and no real
-  order should be placed against this playbook without an explicit instruction to allocate.
+- **There is no MCP tool coverage for event contracts** — this repo's Robinhood toolset
+  covers equities, options, and crypto only, so the SPY playbook's exact automation pattern
+  (broker MCP tool -> CSV -> engine) does not transfer.
+- **Quotes are still automatable via Kalshi's public REST API**, which needs no authentication
+  for market data: `GET https://api.elections.kalshi.com/trade-api/v2/markets`, filterable by
+  `series_ticker` (e.g. `KXFED`, `KXHIGHNY`, `KXCPIYOY` — the three §3a market families).
+  Each market returns `yes_bid_dollars` / `yes_ask_dollars`, bid/ask sizes (`yes_bid_size_fp`),
+  `volume_fp`, `close_time`, `status`, and — importantly for §4's first kill condition —
+  the settlement text in `rules_primary`. The `/orderbook` endpoint is also open. That covers
+  every input §5's screen needs, so this strategy *can* be automated the same way as the SPY
+  playbook, with an HTTP fetch standing in for the broker MCP call.
+  - Note: `liquidity_dollars` reads `0.0000` even on active markets — use the bid/ask *sizes*
+    for §4's depth check, not that field.
+  - Placing orders needs an authenticated Kalshi account; only market data is open. Nothing in
+    this playbook requires order placement to run in paper mode.
+- **Mode: research only — not currently running.** Unlike SPY scalping, this strategy has no
+  allocation in `research/ledger.md`, no state file, no runbook, and no cron: nothing is being
+  screened or logged on a schedule. The doc and `prediction_market_edge.py` are the strategy;
+  standing up a paper loop against the API above is a separate, not-yet-built piece of work.
+  No real order should be placed without an explicit instruction to allocate.
 
 ## 10. Record keeping
 Log every screened trade — including the ones you *skipped* — with: market, settlement source,
