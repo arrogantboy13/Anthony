@@ -147,6 +147,33 @@ series manufactures mean reversion mechanically (bid-ask bounce), which is why t
 uses executable ask/bid prices rather than mids. On mids the "bounce" looks about three times
 larger than it is.
 
+## 6b. The model is not smarter than the market (and the tool now says so)
+`btc15m_fair_value.py` originally flagged a trade whenever its fair value beat the price by
+fee + 3c. Across a live session it fired on the *same side every time*, which was the tell.
+Replaying the model minute-by-minute over 200 settled windows
+(`research/btc15m_model_calibration.py`) says why:
+
+| Measure | Value | Meaning |
+|---|---|---|
+| `MODEL_BIAS` | **−0.0542** | the model reads 5.4 points BELOW the market, systematically |
+| `RESIDUAL_SD` | **0.1307** | and routinely lands 13 points away from it in either direction |
+| Brier, market | 0.1771 | |
+| Brier, model | 0.1694 | looks like the model wins... |
+| 95% CI (bootstrap over windows) | **[−0.0004, +0.0160]** | ...but it includes zero |
+
+That last row is the whole point, and it only appears if you resample **windows** rather than
+observations: fifteen minute-bars from one window are a single price path, so the effective
+sample is 200, not 2,600. Cluster correctly and the model's apparent skill evaporates. The
+day-split agrees — the model loses to the market on 09-04 and wins on the other two.
+
+**So a disagreement between this model and the market is not evidence the market is wrong.**
+The script now de-biases its fair value and requires an edge to clear three gates: trading
+cost, the fee-plus-buffer floor, *and* `RESIDUAL_SD` — because an edge smaller than the
+model's own noise band is indistinguishable from the model simply being wrong, which on this
+sample it is about as often as the market. In practice the gate almost never opens. That is
+the correct behavior for a tool pointed at an efficient market, and the earlier version's
+steady stream of confident one-sided "signals" was the bug.
+
 ## 7. If you're trading them anyway
 In rough order of how much each one is worth:
 

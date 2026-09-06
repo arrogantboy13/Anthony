@@ -31,7 +31,18 @@ import urllib.request
 KALSHI = "https://api.elections.kalshi.com/trade-api/v2"
 COINBASE = "https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60"
 COINBASE_TICKER = "https://api.exchange.coinbase.com/products/BTC-USD/ticker"
-EDGE_BUFFER = 0.03  # model-error haircut, same as the playbook's entry threshold
+EDGE_BUFFER = 0.03  # fee-plus-buffer floor, same as the playbook's entry threshold
+
+# Measured against 200 settled windows by research/btc15m_model_calibration.py — not guessed.
+# Re-run that script to refresh them; they drift as new windows settle.
+# The model reads systematically BELOW the market, and its disagreement with the market is
+# wide. Both numbers are needed to keep this script from emitting phantom signals.
+MODEL_BIAS = -0.0542      # mean(fair - market mid): the model's standing low bias
+RESIDUAL_SD = 0.1307      # stdev of that disagreement: the model's own noise band
+# Critically: over the same sample the model is NOT more accurate than the market. Brier
+# 0.1682 vs 0.1755 looks like a model win, but the 95% bootstrap CI over windows is
+# [-0.0006, +0.0157] — it includes zero. So a model/market disagreement is NOT evidence
+# the market is wrong, and the gate below refuses to treat it as one.
 
 
 def _get(url):
@@ -82,6 +93,7 @@ def fair_probability(spot, target, mins_left, sigma_1min):
 
 def screen(spot, target, mins_left, sigma_1min, ask, bid, contracts=1):
     fair = fair_probability(spot, target, mins_left, sigma_1min)
+    fair_debiased = min(max(fair - MODEL_BIAS, 0.0), 1.0)
     spread = (ask - bid) if (ask is not None and bid is not None) else 0.0
     out = {"spot": round(spot, 2), "target": round(target, 2),
            "distance_dollars": round(spot - target, 2),
@@ -92,17 +104,44 @@ def screen(spot, target, mins_left, sigma_1min, ask, bid, contracts=1):
                sigma_1min * math.sqrt(max(mins_left - 0.5, 0.05)) * spot / 39.9, 1),
            "fair_yes": round(fair, 4), "yes_bid": bid, "yes_ask": ask,
            "spread": round(spread, 4)}
-    for side, price, p_win in (("YES", ask, fair), ("NO", (1 - bid) if bid is not None else None, 1 - fair)):
+    mid = ((ask + bid) / 2.0) if (ask is not None and bid is not None) else None
+    disagreement_sd = None
+    if mid is not None:
+        # How far is the DE-BIASED model from the market, in units of the model's own noise?
+        disagreement_sd = (fair_debiased - mid) / RESIDUAL_SD
+        out["market_mid"] = round(mid, 4)
+        out["fair_yes_debiased"] = round(fair_debiased, 4)
+        out["disagreement_sd"] = round(disagreement_sd, 2)
+
+    for side, price, p_win in (("YES", ask, fair_debiased),
+                               ("NO", (1 - bid) if bid is not None else None, 1 - fair_debiased)):
         if price is None:
             continue
         fee = kalshi_fee(price, contracts) / contracts
         hurdle = fee + spread / 2.0
         edge = p_win - price - fee
+        # Three independent gates, ALL of which must pass. The first is the trading cost.
+        # The second says the edge must exceed the model's own disagreement noise — an edge
+        # smaller than RESIDUAL_SD is indistinguishable from the model being wrong, which on
+        # this sample it is just as often as the market. The third is the playbook's buffer.
+        clears_cost = edge >= hurdle
+        clears_noise = edge >= RESIDUAL_SD
+        clears_buffer = edge >= (fee + EDGE_BUFFER)
+        if not clears_cost:
+            why = "edge below trading cost"
+        elif not clears_noise:
+            why = (f"edge {edge:.3f} is inside the model's own noise band "
+                   f"({RESIDUAL_SD:.3f}); the model is not more accurate than the market")
+        elif not clears_buffer:
+            why = "edge below fee + model-error buffer"
+        else:
+            why = "clears cost, noise band and buffer — verify the feed before acting"
         out[f"buy_{side.lower()}"] = {
             "price": round(price, 4), "fee_per_contract": round(fee, 4),
             "hurdle_per_contract": round(hurdle, 4),
             "net_edge": round(edge, 4),
-            "tradeable": edge >= EDGE_BUFFER,
+            "signal": clears_cost and clears_noise and clears_buffer,
+            "why": why,
         }
     return out
 
