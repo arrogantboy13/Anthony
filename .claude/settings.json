@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "Bash(git fetch *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(ls *)",
+      "Bash(wc *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(jq *)",
+      "Bash(python3 research/paper_trade_engine.py *)",
+      "Bash(python3 research/backtest_spy_scalping.py *)",
+      "Bash(python3 research/backtest_spy_options_scalping.py *)",
+      "Read",
+      "Glob",
+      "Grep"
+    ],
+    "deny": [
+      "mcp__Robinhood__place_equity_order",
+      "mcp__Robinhood__place_option_order",
+      "mcp__Robinhood__place_crypto_order",
+      "mcp__Robinhood__exercise_option"
+    ]
+  }
+}
