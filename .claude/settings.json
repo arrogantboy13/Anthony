@@ -29,5 +29,19 @@
       "mcp__Robinhood__place_crypto_order",
       "mcp__Robinhood__exercise_option"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/sync.sh",
+            "timeout": 30,
+            "statusMessage": "Syncing to GitHub..."
+          }
+        ]
+      }
+    ]
   }
 }
