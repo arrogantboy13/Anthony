@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+
+# BTC 15-min backtest cache
+.kxbtc15m_cache/
