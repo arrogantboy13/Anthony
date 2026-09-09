@@ -196,6 +196,62 @@ In rough order of how much each one is worth:
    of windows per day. The 96-windows-a-day cadence is what turns a thin negative edge into a
    fast one.
 
+## 7a. Market making — the other side of the trade
+Taking liquidity loses. Posting it is a different question, and a cleaner one: quote both
+sides and you capture the spread with no directional exposure, so the sample-drift confound
+that faked every other edge here cannot apply. `research/btc15m_market_making.py`:
+
+| | Per contract |
+|---|---|
+| Spread capture per round turn | **+$0.0087** |
+| Two maker fees (one per side) | **−$0.0066** |
+| **Net, before adverse selection** | **+$0.0021** |
+| *(same round turn paying taker fees)* | *−$0.0258* |
+
+**The spread is set almost exactly equal to twice the maker fee.** That is what a competitive
+market looks like from the inside — makers compete the spread down until it just covers the
+cost of providing it, and no further.
+
+Then the catch. You get filled precisely when the market is moving against you:
+
+| | All fills | Only when the mid moved against you |
+|---|---|---|
+| Bid fill | −$0.0314 | **−$0.1084** |
+| Ask fill | +$0.0335 | **−$0.0456** |
+
+**Adverse selection costs ~$0.078 per fill** against a $0.0021 gross margin. You would need
+better than 97% of your fills to be uninformed flow. On a 15-minute BTC contract, where 97%
+of the minutes show the mid moving, that is not a realistic ask.
+
+There is no honest single number here — nobody can measure fill probability from public data,
+because there is no fill feed. The range: **+$0.0021 optimistic, −$0.0369 realistic,
+−$0.0760 pessimistic.** Queue position, inventory risk, and quotes that simply never fill are
+all unmodelled, and all three push the real figure toward the bottom.
+
+## 7b. Venue economics: the maker rebate
+Kalshi and Polymarket US use the *same fee formula shape*, `Θ × contracts × p × (1−p)`, with
+different coefficients — and one sign flip that matters more than any coefficient:
+
+| At p = $0.50 | Kalshi | Polymarket US | Difference |
+|---|---|---|---|
+| Taker | −$0.0175 (Θ=0.07) | −$0.0150 (Θ=0.06) | +$0.0025 |
+| **Maker** | **−$0.0044** (Θ=0.0175) | **+$0.0031** (Θ=−0.0125, a *rebate*) | **+$0.0075** |
+
+Polymarket US **pays** makers rather than charging them, worth **$0.015 per round turn**. Drop
+that into the same spread and adverse-selection numbers and the gross margin goes from
++$0.0021 to **+$0.0121** — roughly six times better, and still not enough to cover $0.078 of
+adverse selection on this contract.
+
+That comparison points somewhere specific. The rebate is a fixed credit; adverse selection is
+a property of *how informed the flow is*. So the combination worth investigating is a rebate
+venue paired with a **slow-moving market** — the opposite of a 15-minute crypto coin flip.
+Nothing in this repo tests that yet.
+
+**One thing this section cannot do:** Polymarket US's market-data API returns 401 without an
+account, so the fee schedules above are published figures but their *spreads and liquidity are
+unmeasured*. The venue comparison is therefore half-finished by construction — a better fee
+schedule on a wider or thinner book is not an improvement, and I could not check.
+
 ## 8. What would change the answer
 - **A BRTI or direct multi-exchange feed** with sub-second latency — removes the §5 basis
   problem, which is the binding constraint, not the model.
